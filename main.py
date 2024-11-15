@@ -44,6 +44,19 @@ def get_app_private_data(client: Client, app_name: str) -> Path:
     return client.workspace.data_dir / "private" / app_name
 
 
+def get_client_proj_state(client: Client, proj_name: str) -> dict:
+    """
+    Returns the path to the state.json file for the project
+    """
+    project_state = {}
+    project_state_file = client.api_data(f"fl_client/{proj_name}/state.json")
+
+    if project_state_file.is_file():
+        project_state = json.load(project_state_file.open())
+
+    return project_state
+
+
 def init_fl_aggregator_app(client: Client) -> None:
     """
     Creates the `fl_aggregator` app in the `api_data` folder
@@ -161,7 +174,7 @@ def launch_fl_project(client: Client) -> None:
 
     Example:
 
-    - Manually Copy the `fl_config.json`, `model_arch.py`, `global_model_weights.pt` 
+    - Manually Copy the `fl_config.json`, `model_arch.py`, `global_model_weights.pt`
         and `mnist_test_dataset.pt` to the `launch` folder
         api_data
         └── fl_aggregator
@@ -222,7 +235,41 @@ def create_fl_client_request(client: Client, proj_folder: Path):
             # Copy the fl_config.json, model_arch.py to the request folder
             shutil.copy(proj_folder / "fl_config.json", fl_client_request_folder)
             shutil.copy(proj_folder / "model_arch.py", fl_client_request_folder)
-            print(f"Sending request to {fl_client.name} for the project {proj_folder.name}")
+            print(
+                f"Sending request to {fl_client.name} for the project {proj_folder.name}"
+            )
+
+
+def check_fl_client_pvt_data_added(client: Client, proj_folder: Path):
+    """Check if the private data is added to the client"""
+    fl_clients = get_all_directories(proj_folder / "fl_clients")
+    for fl_client in fl_clients:
+        proj_state = get_client_proj_state(fl_client, proj_folder.name)
+        participant_added_data = proj_state.get("dataset_added", False)
+
+        participants_metrics_file = get_participants_metric_file(client, proj_folder)
+        update_json(
+            participants_metrics_file,
+            fl_client.name,
+            ParticipantStateCols.ADDED_PRIVATE_DATA,
+            participant_added_data,
+        )
+
+
+def check_fl_client_model_training_progress(client: Client, proj_folder: Path):
+    """Check if model training progress for the client"""
+    fl_clients = get_all_directories(proj_folder / "fl_clients")
+    for fl_client in fl_clients:
+        proj_state = get_client_proj_state(fl_client, proj_folder.name)
+        model_train_progress = proj_state.get("model_train_progress", "N/A")
+
+        participants_metrics_file = get_participants_metric_file(client, proj_folder)
+        update_json(
+            participants_metrics_file,
+            fl_client.name,
+            ParticipantStateCols.MODEL_TRAINING_PROGRESS,
+            model_train_progress,
+        )
 
 
 def check_fl_client_installed(client: Client, proj_folder: Path):
@@ -236,7 +283,7 @@ def check_fl_client_installed(client: Client, proj_folder: Path):
             raise StateNotReady(f"Client {fl_client.name} is not part of the network")
 
         fl_client_app_path = (
-                client.datasites / fl_client.name / "api_data" / "fl_client"
+            client.datasites / fl_client.name / "api_data" / "fl_client"
         )
         fl_client_request_folder = fl_client_app_path / "request"
         fl_client_request_syftperm = fl_client_request_folder / "_.syftperm"
@@ -449,15 +496,15 @@ def advance_fl_round(client: Client, proj_folder: Path):
     test_dataset_path = test_dataset_dir / fl_config["test_dataset"]
 
     if not test_dataset_path.exists():
-        StateNotReady(
+        raise StateNotReady(
             f"Test dataset not found, please add the test dataset to : {test_dataset_path.resolve()}"
         )
 
+    check_fl_client_model_training_progress(client, proj_folder)
+
     if current_round == 1:
         for participant in participants:
-            client_app_path = (
-                client.datasites / participant / "api_data" / "fl_client"
-            )
+            client_app_path = client.datasites / participant / "api_data" / "fl_client"
             client_agg_weights_folder = (
                 client_app_path / "running" / proj_folder.name / "agg_weights"
             )
@@ -533,10 +580,12 @@ def _advance_fl_project(client: Client, proj_folder: Path) -> None:
 
     try:
         create_fl_client_request(client, proj_folder)
-        
+
         check_fl_client_installed(client, proj_folder)
-        
+
         check_proj_requests(client, proj_folder)
+
+        check_fl_client_pvt_data_added(client, proj_folder)
 
         advance_fl_round(client, proj_folder)
 
