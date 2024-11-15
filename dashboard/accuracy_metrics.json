@@ -1,0 +1,22 @@
+[
+    {
+        "accuracy": 0,
+        "round": 0
+    },
+    {
+        "accuracy": 0.2,
+        "round": 1
+    },
+    {
+        "accuracy": 0.2,
+        "round": 2
+    },
+    {
+        "accuracy": 0.2,
+        "round": 3
+    },
+    {
+        "accuracy": 0.4,
+        "round": 4
+    }
+]
