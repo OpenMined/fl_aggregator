@@ -49,7 +49,7 @@ def get_client_proj_state(fl_client_running_folder: Path, proj_name: str) -> dic
     Returns the path to the state.json file for the project
     """
     project_state = {}
-    project_state_file = fl_client_running_folder / proj_name / "state.json"
+    project_state_file = fl_client_running_folder / f"{proj_name}/state/state.json/"
 
     if project_state_file.is_file():
         project_state = json.load(project_state_file.open())
@@ -264,7 +264,6 @@ def check_fl_client_model_training_progress(client: Client, proj_folder: Path):
         fl_client_running_folder = client.api_data("fl_client/running", fl_client.name)
         proj_state = get_client_proj_state(fl_client_running_folder, proj_folder.name)
         model_train_progress = proj_state.get("model_train_progress", "N/A")
-
         participants_metrics_file = get_participants_metric_file(client, proj_folder)
         update_json(
             participants_metrics_file,
