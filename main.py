@@ -44,12 +44,12 @@ def get_app_private_data(client: Client, app_name: str) -> Path:
     return client.workspace.data_dir / "private" / app_name
 
 
-def get_client_proj_state(client: Client, proj_name: str) -> dict:
+def get_client_proj_state(fl_client_running_folder: Path, proj_name: str) -> dict:
     """
     Returns the path to the state.json file for the project
     """
     project_state = {}
-    project_state_file = client.api_data(f"fl_client/{proj_name}/state.json")
+    project_state_file = fl_client_running_folder / proj_name / "state.json"
 
     if project_state_file.is_file():
         project_state = json.load(project_state_file.open())
@@ -244,7 +244,8 @@ def check_fl_client_pvt_data_added(client: Client, proj_folder: Path):
     """Check if the private data is added to the client"""
     fl_clients = get_all_directories(proj_folder / "fl_clients")
     for fl_client in fl_clients:
-        proj_state = get_client_proj_state(fl_client, proj_folder.name)
+        fl_client_running_folder = client.api_data("fl_client/running", fl_client.name)
+        proj_state = get_client_proj_state(fl_client_running_folder, proj_folder.name)
         participant_added_data = proj_state.get("dataset_added", False)
 
         participants_metrics_file = get_participants_metric_file(client, proj_folder)
@@ -260,7 +261,8 @@ def check_fl_client_model_training_progress(client: Client, proj_folder: Path):
     """Check if model training progress for the client"""
     fl_clients = get_all_directories(proj_folder / "fl_clients")
     for fl_client in fl_clients:
-        proj_state = get_client_proj_state(fl_client, proj_folder.name)
+        fl_client_running_folder = client.api_data("fl_client/running", fl_client.name)
+        proj_state = get_client_proj_state(fl_client_running_folder, proj_folder.name)
         model_train_progress = proj_state.get("model_train_progress", "N/A")
 
         participants_metrics_file = get_participants_metric_file(client, proj_folder)
