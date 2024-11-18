@@ -35,7 +35,7 @@ def create_participant_json_file(
                 ParticipantStateCols.PROJECT_APPROVED.value: False,
                 ParticipantStateCols.ADDED_PRIVATE_DATA.value: False,
                 ParticipantStateCols.ROUND.value: f"0/{total_rounds}",
-                ParticipantStateCols.MODEL_TRAINING_PROGRESS.value: "",
+                ParticipantStateCols.MODEL_TRAINING_PROGRESS.value: "N/A",
             }
         )
 

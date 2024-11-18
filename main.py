@@ -44,12 +44,12 @@ def get_app_private_data(client: Client, app_name: str) -> Path:
     return client.workspace.data_dir / "private" / app_name
 
 
-def get_client_proj_state(fl_client_running_folder: Path, proj_name: str) -> dict:
+def get_client_proj_state(project_folder: Path) -> dict:
     """
     Returns the path to the state.json file for the project
     """
     project_state = {}
-    project_state_file = fl_client_running_folder / f"{proj_name}/state/state.json/"
+    project_state_file = project_folder / "state/state.json/"
 
     if project_state_file.is_file():
         project_state = json.load(project_state_file.open())
@@ -245,8 +245,14 @@ def check_fl_client_pvt_data_added(client: Client, proj_folder: Path):
     fl_clients = get_all_directories(proj_folder / "fl_clients")
     for fl_client in fl_clients:
         fl_client_running_folder = client.api_data("fl_client/running", fl_client.name)
-        proj_state = get_client_proj_state(fl_client_running_folder, proj_folder.name)
-        participant_added_data = proj_state.get("dataset_added", False)
+
+        fl_proj_folder = fl_client_running_folder / proj_folder.name
+        proj_state = get_client_proj_state(fl_proj_folder)
+        participant_added_data = proj_state.get("dataset_added")
+
+        # Skip if the state file is not present
+        if participant_added_data is None:
+            return
 
         participants_metrics_file = get_participants_metric_file(client, proj_folder)
         update_json(
@@ -262,8 +268,14 @@ def check_fl_client_model_training_progress(client: Client, proj_folder: Path):
     fl_clients = get_all_directories(proj_folder / "fl_clients")
     for fl_client in fl_clients:
         fl_client_running_folder = client.api_data("fl_client/running", fl_client.name)
-        proj_state = get_client_proj_state(fl_client_running_folder, proj_folder.name)
-        model_train_progress = proj_state.get("model_train_progress", "N/A")
+        fl_proj_folder = fl_client_running_folder / proj_folder.name
+        proj_state = get_client_proj_state(fl_proj_folder)
+        model_train_progress = proj_state.get("model_train_progress")
+
+        # Skip if the state file is not present
+        if model_train_progress is None:
+            return
+
         participants_metrics_file = get_participants_metric_file(client, proj_folder)
         update_json(
             participants_metrics_file,
