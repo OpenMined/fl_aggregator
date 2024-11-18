@@ -287,10 +287,10 @@
         console.error("Error fetching API status:", error);
         this.renderBadge(
           "install-syftbox",
-          "Install fl_client app",
+          "Install SyftBox",
           "",
           "",
-          () => window.open("https://github.com/openmined/fl_client", "_blank"),
+          () => window.open("https://syftbox.openmined.org/", "_blank"),
           iconUrl
         );
       }
@@ -365,8 +365,8 @@
       } catch (error) {
         console.error("Error installing API:", error);
         this.renderBadge(
-          "install-flclient",
-          "Install fl_client app",
+          "install-syftbox",
+          "Install SyftBox",
           "SyftBox",
           "Latest",
           () => window.open("https://syftbox.openmined.org/", "_blank"),
