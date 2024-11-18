@@ -151,6 +151,8 @@ def initialize_fl_project(client: Client, fl_config_json_path: Path) -> None:
         metrics_folder = Path(client.my_datasite) / "public" / "fl" / proj_name
         metrics_folder.mkdir(parents=True, exist_ok=True)
         shutil.copy("./dashboard/index.html", metrics_folder)
+        shutil.copy("./dashboard/syftbox-sdk.js", metrics_folder)
+        shutil.copy("./dashboard/index.js", metrics_folder)
 
         # Create a new participants.json file in the metrics folder
         participant_metrics_file = metrics_folder / "participants.json"
