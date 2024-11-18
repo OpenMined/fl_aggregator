@@ -9,7 +9,7 @@
     return (
       githubUrl
         .replace("github.com", "raw.githubusercontent.com")
-        .replace(/\/$/, "") + "/main/README.md"
+        .replace(/\/$/, "") + "/main/version.md"
     );
   }
 
@@ -22,7 +22,7 @@
         const masterUrl = rawUrl.replace("/main/", "/master/");
         const masterResponse = await fetch(masterUrl);
         if (!masterResponse.ok) {
-          throw new Error("Failed to fetch README");
+          throw new Error("Failed to fetch version.md from GitHub");
         }
         return parseFrontmatter(await masterResponse.text());
       }
@@ -287,10 +287,10 @@
         console.error("Error fetching API status:", error);
         this.renderBadge(
           "install-syftbox",
-          "Install SyftBox",
+          "Install fl_client app",
           "",
           "",
-          () => window.open("https://syftbox.openmined.org/", "_blank"),
+          () => window.open("https://github.com/openmined/fl_client", "_blank"),
           iconUrl
         );
       }
@@ -308,7 +308,7 @@
       const isInteractive = status !== "checking";
 
       const defaultIcon =
-        "https://raw.githubusercontent.com/OpenMined/ftop/refs/heads/main/icon.png";
+        "https://raw.githubusercontent.com/OpenMined/fl_client/refs/heads/main/icon.png";
       const finalIconUrl = iconUrl || defaultIcon;
 
       container.innerHTML = `
@@ -337,7 +337,7 @@
       button.disabled = true;
 
       const defaultIcon =
-        "https://raw.githubusercontent.com/OpenMined/ftop/refs/heads/main/icon.png";
+        "https://raw.githubusercontent.com/OpenMined/fl_client/refs/heads/main/icon.png";
       const finalIconUrl = iconUrl || defaultIcon;
 
       button.innerHTML = `
@@ -365,8 +365,8 @@
       } catch (error) {
         console.error("Error installing API:", error);
         this.renderBadge(
-          "install-syftbox",
-          "Install SyftBox",
+          "install-flclient",
+          "Install fl_client app",
           "SyftBox",
           "Latest",
           () => window.open("https://syftbox.openmined.org/", "_blank"),
