@@ -358,7 +358,7 @@
         });
 
         if (response.status === 200) {
-          this.show("ftop", version, source, iconUrl);
+          this.show("fl_client", version, source, iconUrl);
         } else {
           throw new Error("Installation failed");
         }
