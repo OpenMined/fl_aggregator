@@ -9,7 +9,7 @@
     return (
       githubUrl
         .replace("github.com", "raw.githubusercontent.com")
-        .replace(/\/$/, "") + "/main/version.md"
+        .replace(/\/$/, "") + "/main/README.md"
     );
   }
 
@@ -22,7 +22,7 @@
         const masterUrl = rawUrl.replace("/main/", "/master/");
         const masterResponse = await fetch(masterUrl);
         if (!masterResponse.ok) {
-          throw new Error("Failed to fetch version.md from GitHub");
+          throw new Error("Failed to fetch README.md from GitHub");
         }
         return parseFrontmatter(await masterResponse.text());
       }
