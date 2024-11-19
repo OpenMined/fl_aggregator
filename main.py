@@ -308,7 +308,6 @@ def check_fl_client_installed(client: Client, proj_folder: Path):
 
         if not fl_client_request_syftperm.is_file():
             print(f"FL client {fl_client.name} has not installed the app yet")
-            return
 
         # As they have installed, update the participants.json file with state
         participants_metrics_file = get_participants_metric_file(client, proj_folder)
