@@ -225,7 +225,8 @@ def create_fl_client_request(client: Client, proj_folder: Path):
     
     for fl_client in fl_clients:
         if fl_client.name not in network_participants:
-            raise StateNotReady(f"Client {fl_client.name} is not part of the network")
+            print(f"Client {fl_client.name} is not part of the network")
+            continue
 
         fl_client_app_path = (
             client.datasites / fl_client.name / "api_data" / "fl_client"
@@ -295,27 +296,25 @@ def check_fl_client_installed(client: Client, proj_folder: Path):
     Checks if the client has installed the `fl_client` app
     """
     fl_clients = get_all_directories(proj_folder / "fl_clients")
-    network_participants = get_network_participants(client)
     for fl_client in fl_clients:
-        if fl_client.name not in network_participants:
-            raise StateNotReady(f"Client {fl_client.name} is not part of the network")
-
         fl_client_app_path = (
             client.datasites / fl_client.name / "api_data" / "fl_client"
         )
         fl_client_request_folder = fl_client_app_path / "request"
         fl_client_request_syftperm = fl_client_request_folder / "_.syftperm"
 
+        installed_fl_client_app = True
         if not fl_client_request_syftperm.is_file():
             print(f"FL client {fl_client.name} has not installed the app yet")
+            installed_fl_client_app = False
 
-        # As they have installed, update the participants.json file with state
         participants_metrics_file = get_participants_metric_file(client, proj_folder)
+        # As they have installed, update the participants.json file with state
         update_json(
             participants_metrics_file,
             fl_client.name,
             ParticipantStateCols.FL_CLIENT_INSTALLED,
-            True,
+            installed_fl_client_app,
         )
 
 
