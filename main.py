@@ -51,7 +51,6 @@ def get_client_proj_state(project_folder: Path) -> dict:
     project_state = {}
     project_state_file = project_folder / "state/state.json/"
 
-    print("Project state file", project_state_file.resolve())
 
     if project_state_file.is_file():
         project_state = json.load(project_state_file.open())
@@ -223,7 +222,7 @@ def create_fl_client_request(client: Client, proj_folder: Path):
     """
     fl_clients = get_all_directories(proj_folder / "fl_clients")
     network_participants = get_network_participants(client)
-    print("network_participants", network_participants)
+    
     for fl_client in fl_clients:
         if fl_client.name not in network_participants:
             raise StateNotReady(f"Client {fl_client.name} is not part of the network")
@@ -250,7 +249,6 @@ def check_fl_client_pvt_data_added(
 ):
     """Check if the private data is added to the client"""
 
-    print("Checking for private data added to the client")
 
     proj_state = get_client_proj_state(fl_proj_folder)
 
@@ -258,9 +256,8 @@ def check_fl_client_pvt_data_added(
 
     # Skip if the state file is not present
     if participant_added_data is None:
+        print(f"Private data not added to the client {fl_client_name}")
         return
-
-    print(f"{fl_client_name} added the private data: {participant_added_data}")
 
     participants_metrics_file = get_participants_metric_file(client, fl_proj_folder)
     update_json(
