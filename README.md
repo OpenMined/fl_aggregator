@@ -57,7 +57,11 @@ If this directory isn't available, either run the syftbox client with fl_aggrega
 ## Post-kickoff
 
 - Visit the aggregator's dashboard to monitor the FL progress
-which is available at `http://server_url/datasites/<aggregator_email>/fl/<project_name>/`
+which is available at `http://server_url/datasites/<aggregator_email>/fl/<project_name>/`  
+
+The server_url depends on which the server the client is running on.
+- syftbox.openmined.org (for the public server)
+- localhost:5001 (when running locally)
 
 Code Flow:
 
