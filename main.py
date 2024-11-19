@@ -1,3 +1,4 @@
+from datetime import datetime
 import importlib.util
 from syftbox.lib import Client
 from syftbox.lib import SyftPermission
@@ -493,6 +494,19 @@ def save_model_accuracy_metrics(
         json.dump(metrics, f)
 
 
+def create_done_file(client: Client, proj_folder: Path) -> None:
+    """
+    Create a done.json file to indicate that the script has finished running
+    """
+    metrics_folder = client.my_datasite / "public" / "fl" / proj_folder.name
+    done_file = metrics_folder / "done.json"
+    done_data = {
+        "done_time": datetime.now().isoformat()
+    }
+    with open(done_file, "w") as f:
+        json.dump(done_data, f)
+
+
 def advance_fl_round(client: Client, proj_folder: Path):
     """
     1. Wait for the trained model from the clients
@@ -510,6 +524,7 @@ def advance_fl_round(client: Client, proj_folder: Path):
     if current_round >= total_rounds + 1:
         print(f"FL project {proj_folder.name} is complete ✅")
         shift_project_to_done_folder(client, proj_folder, total_rounds)
+        create_done_file(client, proj_folder)
         return
 
     participants = fl_config["participants"]
@@ -598,6 +613,8 @@ def _advance_fl_project(client: Client, proj_folder: Path) -> None:
     5. wait for the trained model from the clients
     6. aggregate the trained model
     7. repeat d until all the rounds are complete
+    8. move weights to done folder and create a done.json file to indicate that 
+        the script has finished running
     """
 
     try:

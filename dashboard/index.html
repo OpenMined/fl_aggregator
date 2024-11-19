@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Training Results Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         .header {
             display: flex;
@@ -383,10 +384,68 @@
             }
         }
 
+        // Function to trigger confetti animation
+        function triggerConfetti() {
+            // First burst with text
+            var duration = 3 * 1000;
+            var end = Date.now() + duration;
+
+            // Create text element
+            const text = document.createElement('div');
+            text.textContent = 'Congratulations, you have completed Federated Learning on SyftBox 🎉🎉🎉';
+            text.style.position = 'fixed';
+            text.style.top = '40%';
+            text.style.left = '50%';
+            text.style.transform = 'translate(-50%, -50%)';
+            text.style.fontSize = '3em';
+            text.style.fontWeight = 'bold';
+            text.style.color = '#dc2626';
+            text.style.opacity = '0';
+            text.style.transition = 'opacity 1s';
+            document.body.appendChild(text);
+
+            // Fade in text
+            setTimeout(() => {
+                text.style.opacity = '1';
+            }, 100);
+
+            // Multiple confetti bursts
+            (function frame() {
+                confetti({
+                    particleCount: 20,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0, y: 0.6 }
+                });
+                confetti({
+                    particleCount: 20,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1, y: 0.6 }
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        // Function to check if the main.py script has finished running
+        async function checkIfDone() {
+            // Check done.json file
+            const doneData = await loadJSON('done.json');
+            if (doneData) {
+                console.log('Training completed:', doneData);
+                // Trigger confetti
+                triggerConfetti();
+            }
+        }
+
         // Initialize the dashboard and start polling
         async function initDashboard() {
             await checkForUpdates();
             setInterval(checkForUpdates, POLLING_INTERVAL);
+            setInterval(checkIfDone, POLLING_INTERVAL);
         }
 
         // Start the application
