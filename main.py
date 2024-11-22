@@ -13,9 +13,12 @@ from utils import (
     ParticipantStateCols,
     read_json,
     save_json,
+    is_dir_empty,
+    load_model_class,
+    get_all_directories,
+    get_network_participants,
+    validate_launch_config,
 )
-
-# TODO: add a syftignore to ignore mnist test dataset from syncing
 
 
 # Exception name to indicate the state cannot advance
@@ -24,23 +27,12 @@ class StateNotReady(Exception):
     pass
 
 
-# TODO: Currently setting the permissions with public write
-# change the permission model later to be more secure
-# NOTE: we mainly want the aggregator to have write access to
-# fl_aggregator/running/fl_project_name/fl_clients/*
 def add_public_write_permission(client: Client, path: Path) -> None:
     """
     Adds public write permission to the given path
     """
     permission = SyftPermission.mine_with_public_write(client.email)
     permission.ensure(path)
-
-
-def get_all_directories(path: Path) -> list:
-    """
-    Returns the list of directories present in the given path
-    """
-    return [x for x in path.iterdir() if x.is_dir()]
 
 
 def get_app_private_data(client: Client, app_name: str) -> Path:
@@ -63,34 +55,11 @@ def get_client_proj_state(project_folder: Path) -> dict:
     return project_state
 
 
-def validate_launch_config(fl_config: Path) -> bool:
+def get_participants_metric_file(client: Client, proj_folder: Path):
     """
-    Validates the `fl_config.json` file
+    Returns the path to the participant metrics file
     """
-
-    try:
-        fl_config = read_json(fl_config)
-    except json.JSONDecodeError:
-        raise ValueError(f"Invalid JSON format in {fl_config.resolve()}")
-
-    required_keys = [
-        "project_name",
-        "aggregator",
-        "participants",
-        "model_arch",
-        "model_weight",
-        "model_class_name",
-        "rounds",
-        "epoch",
-        "test_dataset",
-        "learning_rate",
-    ]
-
-    for key in required_keys:
-        if key not in fl_config:
-            raise ValueError(f"Required key {key} is missing in fl_config.json")
-
-    return True
+    return client.my_datasite / "public" / "fl" / proj_folder.name / "participants.json"
 
 
 def init_aggregator(client: Client) -> None:
@@ -177,8 +146,9 @@ def init_project_directory(client: Client, fl_config_json_path: Path) -> None:
     running_folder = fl_aggregator / "running"
     proj_folder = running_folder / proj_name
 
-    # If the project already exists, then skip creating the project
-    if proj_folder.is_dir():
+    # If the project already exists and is not empty
+    # then skip creating the project
+    if proj_folder.is_dir() and not is_dir_empty(proj_folder):
         print(f"FL project {proj_name} already exists at: {proj_folder.resolve()}")
         return
 
@@ -254,25 +224,6 @@ def launch_fl_project(client: Client) -> None:
     init_project_directory(client, fl_config_json_path)
 
 
-def get_network_participants(client: Client):
-    exclude_dir = ["apps", ".syft"]
-    entries = client.datasites.iterdir()
-
-    users = []
-    for entry in entries:
-        if entry.is_dir() and entry not in exclude_dir:
-            users.append(entry.name)
-
-    return users
-
-
-def get_participants_metric_file(client: Client, proj_folder: Path):
-    """
-    Returns the path to the participant metrics file
-    """
-    return client.my_datasite / "public" / "fl" / proj_folder.name / "participants.json"
-
-
 def create_fl_client_request(client: Client, proj_folder: Path):
     """
     Create the request folder for the fl clients
@@ -299,30 +250,6 @@ def create_fl_client_request(client: Client, proj_folder: Path):
             print(
                 f"Sending request to {fl_client.name} for the project {proj_folder.name}"
             )
-
-
-def check_fl_client_pvt_data_added(
-    fl_proj_folder: Path,
-    fl_client_name: str,
-):
-    """Check if the private data is added to the client"""
-
-    proj_state = get_client_proj_state(fl_proj_folder)
-
-    participant_added_data = proj_state.get("dataset_added")
-
-    # Skip if the state file is not present
-    if participant_added_data is None:
-        print(f"Private data not added to the client {fl_client_name}")
-        return
-
-    participants_metrics_file = get_participants_metric_file(client, fl_proj_folder)
-    update_json(
-        participants_metrics_file,
-        fl_client_name,
-        ParticipantStateCols.ADDED_PRIVATE_DATA,
-        participant_added_data,
-    )
 
 
 def check_pvt_data_added_by_peer(
@@ -371,15 +298,6 @@ def track_model_train_progress_for_peers(client: Client, proj_folder: Path):
             ParticipantStateCols.MODEL_TRAINING_PROGRESS,
             model_train_progress,
         )
-
-
-def load_model_class(model_path: Path, model_class_name: str) -> type:
-    spec = importlib.util.spec_from_file_location(model_path.stem, model_path)
-    model_arch = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(model_arch)
-    model_class = getattr(model_arch, model_class_name)
-
-    return model_class
 
 
 def aggregate_model(fl_config, proj_folder, trained_model_paths, current_round) -> Path:
@@ -538,7 +456,9 @@ def check_proj_requests_status(
     if not running_folder.is_dir() and not request_folder.is_dir():
         print(f"Request sent to {peer_name} for the project {project_name}.")
 
-    if running_folder.is_dir():
+    # Check if project is approved by the client
+    # If the running folder is not empty, then the project is a valid project
+    if running_folder.is_dir() and not is_dir_empty(running_folder):
         update_json(
             participant_metrics_file,
             peer_name,
