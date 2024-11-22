@@ -209,7 +209,7 @@ def launch_fl_project(client: Client) -> None:
                     ├── mnist_test_dataset.pt
     """
 
-    fl_config_json_path = client.api_data("fl_aggregator/launch/fl_config.json/")
+    fl_config_json_path = client.api_data("fl_aggregator/launch/fl_config.json")
 
     if not fl_config_json_path.is_file():
         print(
@@ -463,7 +463,7 @@ def check_proj_requests_status(
     peer_name: str,
     project_name: str,
     participant_metrics_file: Path,
-) -> None:
+) -> bool:
     """Check if the project requests are sent to the clients and if the clients have approved the project."""
     request_folder = peer_client_path / "request" / project_name
     running_folder = peer_client_path / "running" / project_name
