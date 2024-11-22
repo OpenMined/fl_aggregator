@@ -1,7 +1,8 @@
-import json
-from pathlib import Path
-from enum import Enum
 import importlib.util
+import json
+from enum import Enum
+from pathlib import Path
+
 from syftbox.lib import Client
 
 

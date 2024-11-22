@@ -1,22 +1,21 @@
-import importlib.util
-from syftbox.lib import Client
-from syftbox.lib import SyftPermission
-from pathlib import Path
-import json
 import shutil
-from torch import nn
+from pathlib import Path
+
 import torch
+from syftbox.lib import Client, SyftPermission
+from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
+
 from utils import (
-    create_participant_json_file,
-    update_json,
     ParticipantStateCols,
-    read_json,
-    save_json,
-    is_dir_empty,
-    load_model_class,
+    create_participant_json_file,
     get_all_directories,
     get_network_participants,
+    is_dir_empty,
+    load_model_class,
+    read_json,
+    save_json,
+    update_json,
     validate_launch_config,
 )
 
@@ -226,8 +225,11 @@ def launch_fl_project(client: Client) -> None:
 
 def create_fl_client_request(client: Client, proj_folder: Path):
     """
-    Create the request folder for the fl clients
+    Create the request folder for the fl clients.
+    Creates a request folder for each client in the project's fl_clients folder
+    and copies the fl_config.json and model_arch.py to the request folder.
     """
+
     fl_clients = get_all_directories(proj_folder / "fl_clients")
     network_participants = get_network_participants(client)
 
@@ -258,7 +260,7 @@ def check_pvt_data_added_by_peer(
     project_name: str,
     participant_metrics_file: Path,
 ):
-    """Check if the private data is added by the client"""
+    """Check if the private data is added by the client for model training."""
 
     fl_proj_folder = peer_client_path / "running" / project_name
     proj_state = get_client_proj_state(fl_proj_folder)
@@ -279,7 +281,7 @@ def check_pvt_data_added_by_peer(
 
 
 def track_model_train_progress_for_peers(client: Client, proj_folder: Path):
-    """Track the model training progress for the peer"""
+    """Track the model training progress for the peer."""
     fl_clients = get_all_directories(proj_folder / "fl_clients")
     for fl_client in fl_clients:
         fl_client_running_folder = client.api_data("fl_client/running", fl_client.name)
@@ -301,6 +303,7 @@ def track_model_train_progress_for_peers(client: Client, proj_folder: Path):
 
 
 def aggregate_model(fl_config, proj_folder, trained_model_paths, current_round) -> Path:
+    """Aggregate the trained models from the clients and save the aggregated model"""
     print("Aggregating the trained models")
     print(f"Trained model paths: {trained_model_paths}")
     global_model_class = load_model_class(
@@ -359,6 +362,7 @@ def shift_project_to_done_folder(
 
 
 def evaluate_agg_model(agg_model: nn.Module, dataset_path: Path) -> float:
+    """Evaluate the aggregated model using the test dataset. We use accuracy as the evaluation metric."""
     agg_model.eval()
 
     # load the saved mnist subset
@@ -412,6 +416,10 @@ def save_model_accuracy_metrics(
 
 
 def check_aggregator_added_pvt_data(client: Client, proj_folder: Path):
+    """Check if the aggregator has added the test dataset for model evaluation.
+
+    Test dataset location: `api_data/fl_aggregator/private/<test_dataset>.pt`
+    """
     fl_config = read_json(proj_folder / "fl_config.json")
     test_dataset_dir = get_app_private_data(client, "fl_aggregator")
     test_dataset_path = test_dataset_dir / fl_config["test_dataset"]
@@ -427,6 +435,8 @@ def check_fl_client_app_installed(
     peer_client_path: Path,
     participant_metrics_file: Path,
 ) -> None:
+    """Check if the FL client app is installed for the given participant."""
+
     client_request_folder = peer_client_path / "request"
     client_request_syftperm = client_request_folder / "_.syftperm"
 
@@ -450,6 +460,7 @@ def check_proj_requests_status(
     project_name: str,
     participant_metrics_file: Path,
 ) -> None:
+    """Check if the project requests are sent to the clients and if the clients have approved the project."""
     request_folder = peer_client_path / "request" / project_name
     running_folder = peer_client_path / "running" / project_name
 
