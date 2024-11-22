@@ -11,7 +11,7 @@ from utils import (
     create_participant_json_file,
     get_all_directories,
     get_network_participants,
-    is_dir_empty,
+    has_empty_dirs,
     load_model_class,
     read_json,
     save_json,
@@ -99,6 +99,10 @@ def create_metrics_dashboard(
 
     # Create a new participants.json file in the metrics folder
     participant_metrics_file = metrics_folder / "participants.json"
+
+    # Remove the existing participants.json file if it exists
+    participant_metrics_file.unlink(missing_ok=True)
+
     create_participant_json_file(
         participants, fl_config["rounds"], output_path=participant_metrics_file
     )
@@ -147,7 +151,7 @@ def init_project_directory(client: Client, fl_config_json_path: Path) -> None:
 
     # If the project already exists and is not empty
     # then skip creating the project
-    if proj_folder.is_dir() and not is_dir_empty(proj_folder):
+    if proj_folder.is_dir() and not has_empty_dirs(proj_folder):
         print(f"FL project {proj_name} already exists at: {proj_folder.resolve()}")
         return
 
@@ -469,7 +473,7 @@ def check_proj_requests_status(
 
     # Check if project is approved by the client
     # If the running folder is not empty, then the project is a valid project
-    if running_folder.is_dir() and not is_dir_empty(running_folder):
+    if running_folder.is_dir() and not has_empty_dirs(running_folder):
         update_json(
             participant_metrics_file,
             peer_name,

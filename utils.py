@@ -15,6 +15,12 @@ class ParticipantStateCols(Enum):
     MODEL_TRAINING_PROGRESS = "Training Progress"
 
 
+def has_empty_dirs(directory: Path):
+    return any(
+        subdir.is_dir() and is_dir_empty(subdir) for subdir in directory.iterdir()
+    )
+
+
 def is_dir_empty(directory: Path):
     return not any(directory.iterdir())
 
