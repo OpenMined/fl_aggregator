@@ -7,7 +7,13 @@ import shutil
 from torch import nn
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-from utils import create_participant_json_file, update_json, ParticipantStateCols
+from utils import (
+    create_participant_json_file,
+    update_json,
+    ParticipantStateCols,
+    read_json,
+    save_json,
+)
 
 # TODO: add a syftignore to ignore mnist test dataset from syncing
 
@@ -55,24 +61,6 @@ def get_client_proj_state(project_folder: Path) -> dict:
         project_state = read_json(project_state_file)
 
     return project_state
-
-
-def read_json(json_file: Path) -> dict:
-    """
-    Reads the json file and returns the contents
-    """
-    with open(json_file, "r") as f:
-        data = json.load(f)
-
-    return data
-
-
-def write_json(json_file: Path, data: dict) -> None:
-    """
-    Writes the data to the json file
-    """
-    with open(json_file, "w") as f:
-        json.dump(data, f, indent=4)
 
 
 def validate_launch_config(fl_config: Path) -> bool:
@@ -251,9 +239,10 @@ def launch_fl_project(client: Client) -> None:
     fl_config_json_path = client.api_data("fl_aggregator/launch/fl_config.json/")
 
     if not fl_config_json_path.is_file():
-        raise StateNotReady(
-            f"No launch config found at path: {fl_config_json_path.resolve()}. Skipping current run !!!"
+        print(
+            f"No launch config found at path: {fl_config_json_path.resolve()}. Skipping !!!"
         )
+        return
 
     # Validate the fl_config.json file
     try:
@@ -501,7 +490,7 @@ def save_model_accuracy_metrics(
     metrics = read_json(metrics_file)
 
     metrics.append({"round": current_round, "accuracy": accuracy})
-    write_json(metrics_file, metrics)
+    save_json(metrics, metrics_file)
 
 
 def check_aggregator_added_pvt_data(client: Client, proj_folder: Path):
