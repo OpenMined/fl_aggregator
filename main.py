@@ -135,7 +135,7 @@ def create_metrics_dashboard(
     """Create the metrics dashboard for the project"""
 
     # Copy the metrics and dashboard files to the project's public folder
-    metrics_folder = client.my_datasite / "public/fl/{proj_name}/"
+    metrics_folder = client.my_datasite / f"public/fl/{proj_name}/"
     metrics_folder.mkdir(parents=True, exist_ok=True)
     shutil.copy("./dashboard/index.html", metrics_folder)
     shutil.copy("./dashboard/syftbox-sdk.js", metrics_folder)
