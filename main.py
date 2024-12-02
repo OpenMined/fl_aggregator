@@ -250,10 +250,14 @@ def create_fl_client_request(client: Client, proj_folder: Path):
             # Create a request folder for the client
             fl_client_request_folder.mkdir(parents=True, exist_ok=True)
 
-            # Copy the fl_config.json, model.py to the request folder
+            # Copy the fl_config.json, model_arch file to the request folder
             shutil.copy(proj_folder / "fl_config.json", fl_client_request_folder)
-            # FIXME: filename hardcoded. Should be extracted from config files
-            shutil.copy(proj_folder / "model.py", fl_client_request_folder)
+
+            # Copy the model architecture file to the request folder
+            fl_config = read_json(proj_folder / "fl_config.json")
+            model_arch_filename = fl_config["model_arch"]
+
+            shutil.copy(proj_folder / model_arch_filename, fl_client_request_folder)
             print(
                 f"Sending request to {fl_client.name} for the project {proj_folder.name}"
             )
