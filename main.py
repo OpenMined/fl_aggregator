@@ -134,7 +134,7 @@ def init_project_directory(client: Client, fl_config_json_path: Path) -> None:
                     ├── agg_weights
                     ├── fl_config.json
                     ├── global_model_weights.pt
-                    ├── model_arch.py
+                    ├── model.py
                     └── state.json
             └── done
     """
@@ -194,17 +194,17 @@ def launch_fl_project(client: Client) -> None:
         If not, create a new Project
         a. creates a directory with the project name in running folder
         b. inside the project it creates the folders of clients with a custom syft permissions
-        c. copies over the fl_config.json and model_arch.py and global_model_weights.pt
+        c. copies over the fl_config.json and model.py and global_model_weights.pt
 
     Example:
 
-    - Manually Copy the `fl_config.json`, `model_arch.py`, `global_model_weights.pt`
+    - Manually Copy the `fl_config.json`, `model.py`, `global_model_weights.pt`
         and `mnist_test_dataset.pt` to the `launch` folder
         api_data
         └── fl_aggregator
                 └── launch
                     ├── fl_config.json (dragged and dropped by the user)
-                    ├── model_arch.py (dragged and dropped by the FL user)
+                    ├── model.py (dragged and dropped by the FL user)
                     ├── global_model_weights.pt (dragged and dropped by the FL user)
                     ├── mnist_test_dataset.pt
     """
@@ -231,7 +231,7 @@ def create_fl_client_request(client: Client, proj_folder: Path):
     """
     Create the request folder for the fl clients.
     Creates a request folder for each client in the project's fl_clients folder
-    and copies the fl_config.json and model_arch.py to the request folder.
+    and copies the fl_config.json and model.py to the request folder.
     """
 
     fl_clients = get_all_directories(proj_folder / "fl_clients")
@@ -250,9 +250,10 @@ def create_fl_client_request(client: Client, proj_folder: Path):
             # Create a request folder for the client
             fl_client_request_folder.mkdir(parents=True, exist_ok=True)
 
-            # Copy the fl_config.json, model_arch.py to the request folder
+            # Copy the fl_config.json, model.py to the request folder
             shutil.copy(proj_folder / "fl_config.json", fl_client_request_folder)
-            shutil.copy(proj_folder / "model_arch.py", fl_client_request_folder)
+            # FIXME: filename hardcoded. Should be extracted from config files
+            shutil.copy(proj_folder / "model.py", fl_client_request_folder)
             print(
                 f"Sending request to {fl_client.name} for the project {proj_folder.name}"
             )

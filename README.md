@@ -1,119 +1,85 @@
-# FL Aggregator
+# Fl Aggregator
+
+Federated Learning (FL) Aggregator [SyftBox](https://syftbox-documentation.openmined.org) API.
+
+The `fl_agregator` API is featured in the tutorial **Getting Started with FL on SyftBox**. 
+Read more [here](https://syftbox-documentation.openmined.org/tutorials/federated-learning/getting-started/).
 
 ## Usage
 
-**1. Install the app**
+**1. Install the API**
 
+```bash
+git clone https://github.com/OpenMined/fl_aggregator
+
+cp -r ./fl_aggregator <SYFTBOX_DATADIR>/apis/  # default: ~/SyftBox
 ```
-syftbox app install OpenMined/fl_aggregator
-```
 
-**2. Agree on who will aggregate and who will participate**
-In this example, we'll have
+**Note**: `<SYFTBOX_DATADIR>` refers to the SyftBox data directory, according to your
+SyftBox installation (default: `$HOME/SyftBox`).
 
-- Aggregator: <user1@openmined.org>
-- Participants: <user2@openmined.org> and <user3@openmined.org>
+**2. Agree on roles in the FL flow**
 
-NOTE:
+For example: Aggregator: `<a@openmined.org>`; Clients: `<b@openmined.org>`,`<c@openmined.org>`
 
-- Aggregator must decide and implement the model architecture, in this example it's implemented in `model_arch.py`
+- Aggregator must decide and share the model architecture with the clients.
 - Aggregator will also provide a seed model weights which will be fine-tuned by each participant.
 
 **3. Setup the FL config**
 
-Based on the above, we create/edit `fl_config.json` to configure our federated learning flow  
-The Sample files could be found in `apis/fl_aggregator/samples`
+Create a `fl_config.json` configuration file including the following information:
+
+- `"project_name"`: name assigned to the FL experiment.
+- `"aggregator"`: designated aggregator datasite.
+- `"participants"`: list of the designated client datasites.
+- `"rounds"`: number of FL training rounds.
+- `"model_arch"`: the Python module containing the ML model implementation.
+- `"model_weight"`: model parameters file
+- `"epoch"`: number of training epochs to run on each clients,
+- `"learning_rate"`: learning rate of the optimizer.
+
+Please see `samples/launch_config/fl_config.json` for an example configuration file:
 
 ```json
 {
     "project_name": "MNIST_FL",
-    "aggregator": "user1@openmined.org",
-    "participants": ["user2@openmined.org","user3@openmined.org"],
+    "aggregator": "a@openmined.org",
+    "participants": ["b@openmined.org","c@openmined.org"],
     "rounds": 3,
-    "model_arch": "model_arch.py",
+    "model_arch": "model.py",
     "model_weight": "global_model_weight.pt",
     "epoch": 10,
     "learning_rate": 0.1
 }
 ```
 
-**4. Kickstart FL**
+**4. Start the FL experiment**
 
-1. To start the FL training, we must copy the following files to `datasites/<aggregator_email>/api_data/fl_aggregator/launch` directory:
+1. To start the FL experiment, the following files needs to be copied in 
+`<SYFTBOX_DATADIR>/datasites/<aggregator_email>/api_data/fl_aggregator/launch` directory:
 
 - `fl_config.json`
 - `global_model_weight.pt`
-- `model_arch.py`
+- `model.py`
 
-You could copy these files from the samples directory 
-which is present in  `apis/fl_aggregator/samples/launch_config`
+2. Copy the test dataset to `<SYFTBOX_DATADIR>/datasites/<aggregator_email>/private/fl_aggregator` 
 
-2. Copy the test dataset to `private/fl_aggregator` (this directory is present in the root folder of syftbox)
-The samples test dataset could be found in `apis/fl_aggregator/samples/test_data`
+An example test dataset could be found in `./samples/test_data`.
 
+If this directory isn't available, either run the syftbox client with fl_aggregator API installed OR create it manually.
 
-If this directory isn't available, either run the syftbox client with fl_aggregator app installed OR create it manually.
+Once the files are in the `launch` folder, the API will create a folder named after the `project_name` specified in the `file_config.json` in the `running` folder.
 
-## Post-kickoff
+Inside this folder the API will create a folder for each client datasite, where received updates in each round are gathered. 
+Each of these folders will have a `._syftperm` file containing the appropriate permissions granting read/write access to the folder.
 
-- Visit the aggregator's dashboard to monitor the FL progress
-which is available at `http://server_url/datasites/<aggregator_email>/fl/<project_name>/`  
+Finally, the API send a request to each participant to join the FL flow.
 
-The server_url depends on which the server the client is running on.
-- syftbox.openmined.org (for the public server)
-- localhost:5001 (when running locally)
+Please see below an example of the resulting folders structure during the FL execution.
 
-Code Flow:
-
-- Aggregator will wait for all participants to apps_piplines/fl_client
-  - Once available, aggreator will copy these seed files (`fl_config.json`, `model_arch.py`) to each participants apps_piplines/fl_client
-- Once all clients have approved, the FL rounds kick start
-  - Sending the model
-  - Client training on that
-  - Client saving the model at in aggregator's pipeline
-
-
-# FL Client
-
-## Usage
-
-**1. Install the app**
-
-```
-syftbox app install OpenMined/fl_client
-```
-
-**2. Load Private Data**
-
-Copy the datasets to the `private/fl_client` directory. (This directory is present in the root folder of syftbox)  
-The samples test dataset could be found in `apis/fl_client/mnist_samples`  
-Copy any few of the files into the above directory
-
-**3. Accept the FL request**
-
-
-Once the aggregator starts the computation  
-The FL request will be available in the `api_data/fl_client/request/proj_name` directory.  
-It would be created as a folder with the project name.  
-Copy the entire folder to `api_data/fl_client/running/` directory to accept the request.  
-
-Visit the aggregator's dashboard to monitor the FL progress
-
-
-
-## Development
-
-1. The aggregator install the aggregator app with `syftbox app install ./fl_aggregator --config <path_to_config.json>` where `<path_to_config.json>` points to the client's `config.json` (no the app's `config.json`)
-2. Once the app is installed, the `launch` folder is created in `apps_pipeline/fl_aggregator/` together with other folders (`running`, and `done`)
-3. Inside `launch`, there are 3 files: `config.json`, `model_arch.py`, `global_model_weights.pt` that the aggregator have to put in the `launch` folder
-4. Once the files are in the `launch` folder, the app will create a project with the name specified in the `config.json` file inside the `running` folder, e.g. `my_cool_fl_project`
-5. Inside the `my_cool_fl_project` folder, the app will create a folder for each participant where participants' models for each round are collected. Each participant folder will have a `syft_perm` file that contains the permissions to who can read / write its models
-5. Then the `fl_aggregator` creates a request to the participants to join the FL flow
-6.
-
-```
+```plaintext
 api_data
-└── fl_server
+└── fl_aggregator
     ├── launch
     │   ├── config.json
     │   ├── model_arch.py
@@ -134,14 +100,45 @@ api_data
             └── aggregated_model_weights.pt
 ```
 
+**5. Monitoring the FL experiment**
+
+- Visit the aggregator's dashboard to monitor the FL progress
+which is available at `http://server_url/datasites/<aggregator_email>/fl/<project_name>/`, with `<project_name>` matches the name of the FL experiment setup in the `fl_config.json` file.
+
+The server_url depends on which the server the client is running on.
+- `syftbox.openmined.org` (for the public server)
+- `localhost:5001` (when running locally, with default configuration)
+
 ## Running in dev mode
 
-1. **Setting up**: First launch a server `just rs` and 3 clients (`just rc a`. `just rc b`. `just rc c`) where `a` is the fl aggregator, `b` and `c` are fl clients
-2. **Installing the aggregator app**: Clone the repo `https://github.com/OpenMined/tutorial-apps` and install the `fl_aggregator` app on `a`: `syftbox app install tutorial-apps/fl_aggregator/ --config_path .clients/a@openmined.org/config.json`
-3. **Installing clients app**: Install `fl_client` app on `b` and `c`: `syftbox app install tutorial-apps/fl_client/ --config_path .clients/b@openmined.org/config.json` and `syftbox app install tutorial-apps/fl_client/ --config_path .clients/c@openmined.org/config.json`. Note that first time running will be slow due to package installation (e.g. `torch`)
-4. **FL aggregator launching the project**: by copying all files inside `.clients/a@openmined.org/apps/fl_aggregator/samples/` into `.clients/a@openmined.org/datasites/a@openmined.org/api_data/fl_aggregator/launch` and also the `mnist_test_dataset.pt` into `.clients/a@openmined.org/private/fl_aggregator/my_cool_fl_proj/mnist_test_dataset.pt`
-5. **Monitoring**: Go to `http://localhost:5001/datasites/a@openmined.org/fl/my_cool_fl_proj/` to check out the state of the project
-6. **FL clients checking FL project requests**: In `b` and `c` view, check if the aggregator has sent the request by checking if the folder `api_data/fl_client/request`  has any content (e.g. `.clients/b@openmined.org/datasites/b@openmined.org/api_data/fl_client/request/my_cool_fl_proj` for `b`)
-7. **FL clients accepting FL project request**: `b` and `c` copies the `my_cool_fl_proj` folder in `request` into the `running` folder inside `api_data/fl_client/`, e.g. `api_data/fl_client/running/my_cool_fl_proj`
-8. **FL clients prepare data for local training**: `b` and `c` prepares the data to train the local model by copying the `.pt` MNIST data files inside the folder `apps/fl_client/mnist_samples` into `private/` folder e.g. `.clients/b@openmined.org/private/fl_client/my_cool_fl_proj/` for `b`.
-9. **Monitoring**: Once both `b` and `c` prepare the data, the training and aggregation will begin. Check out `http://localhost:5001/datasites/a@openmined.org/fl/my_cool_fl_proj/` to see the progress, which should look something like below ![dashboard](training_results.png)
+> ⚠️ Make sure you have the latest version of the SyftBox repository cloned on your local machine:
+>
+> ```bash
+> git clone https://github.com/OpenMined/syft.git
+> ```
+> Also, make sure you have [just](https://github.com/casey/just) installed.
+
+**Note**: The following commands need to be run within the `syft` directory (the repository root), unless otherwise indicated.
+
+### **Set up**: 
+
+First launch a local SyftBox server, and clients for all datasites participating in the FL flow:
+
+- `just rs`: run SyftBox local dev server on port `5001`
+- `just rc a`: creates a SyftBox client for `a@openmined.org`. (Repeat this for all the clients)
+
+Each of those commands need to be run in a separate terminal session, or within the same terminal
+using tools like [`tmux`](https://github.com/tmux/tmux/wiki) (recommended!).
+
+
+### **Install the aggregator and the client APIs**: 
+
+Aggregator:
+- `git clone https://github.com/OpenMined/fl_aggregator` 
+- `cp -R ./fl_aggregator ./clients/a@openmined.org/apis` 
+
+Client(s):
+
+- `git clone https://github.com/OpenMined/fl_client` 
+- `cp -R ./fl_aggregator ./clients/b@openmined.org/apis`
+- `cp -R ./fl_aggregator ./clients/c@openmined.org/apis`
