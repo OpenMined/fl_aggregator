@@ -30,7 +30,7 @@ def add_public_write_permission(client: Client, path: Path) -> None:
     """
     Adds public write permission to the given path
     """
-    permission = SyftPermission.mine_with_public_write(client, path)
+    permission = SyftPermission.mine_with_public_write(context=client, dir=path)
     permission.ensure(path)
 
 
