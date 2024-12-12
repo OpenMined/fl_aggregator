@@ -30,8 +30,8 @@ def add_public_write_permission(client: Client, path: Path) -> None:
     """
     Adds public write permission to the given path
     """
-    permission = SyftPermission.mine_with_public_write(client.email)
-    permission.ensure(path)
+    permission = SyftPermission.mine_with_public_write(context=client, dir=path)
+    permission.save(path)
 
 
 def get_app_private_data(client: Client, app_name: str) -> Path:
