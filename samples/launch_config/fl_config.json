@@ -11,5 +11,6 @@
     "test_dataset": "mnist_test_dataset.pt",
     "rounds": 3,
     "epoch": 10,
-    "learning_rate": 0.1
+    "learning_rate": 0.1,
+    "early_stopping_patience": 2
 }
