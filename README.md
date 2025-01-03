@@ -135,10 +135,10 @@ using tools like [`tmux`](https://github.com/tmux/tmux/wiki) (recommended!).
 
 Aggregator:
 - `git clone https://github.com/OpenMined/fl_aggregator` 
-- `cp -R ./fl_aggregator ./clients/a@openmined.org/apis` 
+- `cp -R ./fl_aggregator ./.clients/a@openmined.org/apis` 
 
 Client(s):
 
 - `git clone https://github.com/OpenMined/fl_client` 
-- `cp -R ./fl_aggregator ./clients/b@openmined.org/apis`
-- `cp -R ./fl_aggregator ./clients/c@openmined.org/apis`
+- `cp -R ./fl_client ./.clients/b@openmined.org/apis`
+- `cp -R ./fl_client ./.clients/c@openmined.org/apis`
