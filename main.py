@@ -1,5 +1,7 @@
 import shutil
 from pathlib import Path
+import json
+
 
 import torch
 from syftbox.lib import Client, SyftPermission
@@ -311,10 +313,9 @@ def track_model_train_progress_for_peers(client: Client, proj_folder: Path):
         )
 
 
-def aggregate_model(fl_config, proj_folder, trained_model_paths, current_round) -> Path:
-    """Aggregate the trained models from the clients and save the aggregated model"""
+def aggregate_model(fl_config, proj_folder: Path, trained_model_paths: list[Path], current_round: int) -> Path:
     print("Aggregating the trained models")
-    print(f"Trained model paths: {trained_model_paths}")
+
     global_model_class = load_model_class(
         proj_folder / fl_config["model_arch"], fl_config["model_class_name"]
     )
@@ -323,21 +324,32 @@ def aggregate_model(fl_config, proj_folder, trained_model_paths, current_round) 
 
     aggregated_model_weights = {}
 
-    n_peers = len(trained_model_paths)
+    # Read dataset sizes for each participant
+    participant_data_sizes = []
     for model_file in trained_model_paths:
+        participant_name = model_file.parent.name
+        dataset_size_file = model_file.parent / "dataset_size.json"
+        if not dataset_size_file.exists():
+            raise ValueError(f"No dataset_size.json found for participant {participant_name}")
+        with open(dataset_size_file, "r") as f:
+            info = json.load(f)
+        participant_data_sizes.append(info["dataset_size"])
+
+    total_data = sum(participant_data_sizes)
+
+    # Perform weighted average aggregation
+    for idx, model_file in enumerate(trained_model_paths):
         user_model_state = torch.load(str(model_file))
+        weight = participant_data_sizes[idx] / total_data
         for key in global_model_state_dict.keys():
-            # If user model has a different architecture than my global model.
-            # Skip it
-            if user_model_state.keys() != global_model_state_dict.keys():
+            if key not in user_model_state:
                 raise ValueError(
                     "User model has a different architecture than the global model"
                 )
-
-            if aggregated_model_weights.get(key, None) is None:
-                aggregated_model_weights[key] = user_model_state[key] * (1 / n_peers)
+            if key not in aggregated_model_weights:
+                aggregated_model_weights[key] = user_model_state[key] * weight
             else:
-                aggregated_model_weights[key] += user_model_state[key] * (1 / n_peers)
+                aggregated_model_weights[key] += user_model_state[key] * weight
 
     global_model.load_state_dict(aggregated_model_weights)
     global_model_output_path = (
@@ -346,6 +358,7 @@ def aggregate_model(fl_config, proj_folder, trained_model_paths, current_round) 
     torch.save(global_model.state_dict(), str(global_model_output_path))
 
     return global_model_output_path
+
 
 
 def shift_project_to_done_folder(
@@ -478,7 +491,7 @@ def check_proj_requests_status(
 
     # Check if project is approved by the client
     # If the running folder is not empty, then the project is a valid project
-    if running_folder.is_dir() and not has_empty_dirs(running_folder):
+    if running_folder.is_dir(): #and not has_empty_dirs(running_folder):
         update_json(
             participant_metrics_file,
             peer_name,
@@ -506,27 +519,22 @@ def share_agg_model_to_peers(
 
 
 def aggregate_and_evaluate(client: Client, proj_folder: Path):
-    """
-    1. Wait for the trained model from the clients
-    3. Aggregate the trained model and place it in the `agg_weights` folder
-    4. Send the aggregated model to all the clients
-    5. Repeat until all the rounds are complete
-    """
     agg_weights_folder = proj_folder / "agg_weights"
     current_round = len(list(agg_weights_folder.iterdir()))
-
     fl_config = read_json(proj_folder / "fl_config.json")
-
     total_rounds = fl_config["rounds"]
+    early_stopping_patience = fl_config.get("early_stopping_patience", None)
+
+    print("Current rounds: ", current_round)
     if current_round >= total_rounds + 1:
         print(f"FL project {proj_folder.name} is complete ✅")
         shift_project_to_done_folder(client, proj_folder, total_rounds)
         return
 
     participants = fl_config["participants"]
-
     track_model_train_progress_for_peers(client, proj_folder)
 
+    # Ensure that round 1 weights are shared if needed
     if current_round == 1:
         for participant in participants:
             client_app_path = client.datasites / participant / "api_data" / "fl_client"
@@ -537,7 +545,7 @@ def aggregate_and_evaluate(client: Client, proj_folder: Path):
             if not client_round_1_model.is_file():
                 shutil.copy(
                     proj_folder / "agg_weights" / "agg_model_round_0.pt",
-                    client_agg_weights_folder,
+                    client_agg_weights_folder
                 )
 
     pending_clients = []
@@ -551,10 +559,7 @@ def aggregate_and_evaluate(client: Client, proj_folder: Path):
         if not participant_round_folder.is_file():
             pending_clients.append(participant)
         else:
-            # Update the participants.json file with the current round
-            participants_metrics_file = get_participants_metric_file(
-                client, proj_folder
-            )
+            participants_metrics_file = get_participants_metric_file(client, proj_folder)
             update_json(
                 participants_metrics_file,
                 participant,
@@ -567,16 +572,15 @@ def aggregate_and_evaluate(client: Client, proj_folder: Path):
             f"Waiting for trained model from the clients {pending_clients} for round {current_round}"
         )
 
-    # Aggregate the trained model
+    # Aggregate the trained models
     agg_model_output_path = aggregate_model(
         fl_config, proj_folder, trained_model_paths, current_round
     )
 
-    # Test dataset for model evaluation
+    # Evaluate the aggregated model
     test_dataset_dir = get_app_private_data(client, "fl_aggregator")
     test_dataset_path = test_dataset_dir / fl_config["test_dataset"]
 
-    # Evaluate the aggregate model
     model_class = load_model_class(
         proj_folder / fl_config["model_arch"], fl_config["model_class_name"]
     )
@@ -588,7 +592,34 @@ def aggregate_and_evaluate(client: Client, proj_folder: Path):
     # Save the model accuracy metrics
     save_model_accuracy_metrics(client, proj_folder, current_round, accuracy)
 
-    # Send the aggregated model to all the clients
+    # Early Stopping Logic
+    agg_state = get_agg_state(proj_folder)
+    best_accuracy = agg_state["best_accuracy"]
+    no_improvement_rounds = agg_state["no_improvement_rounds"]
+
+    if accuracy > best_accuracy:
+        # Improvement detected
+        best_accuracy = accuracy
+        no_improvement_rounds = 0
+        print(f"New best accuracy: {best_accuracy:.4f}. Reset no_improvement_rounds.")
+    else:
+        # No improvement
+        no_improvement_rounds += 1
+        print(f"No improvement this round. no_improvement_rounds: {no_improvement_rounds}")
+
+    # Update aggregator state
+    agg_state["best_accuracy"] = best_accuracy
+    agg_state["no_improvement_rounds"] = no_improvement_rounds
+    save_agg_state(proj_folder, agg_state)
+
+    # Check for early stopping
+    if early_stopping_patience is not None and no_improvement_rounds >= early_stopping_patience:
+        print(f"No improvement for {no_improvement_rounds} rounds. Early stopping triggered.")
+        # Finish the project early
+        shift_project_to_done_folder(client, proj_folder, total_rounds)
+        return
+
+    # If not stopping, share the aggregated model to all participants for next round
     share_agg_model_to_peers(client, proj_folder, agg_model_output_path, participants)
 
 
@@ -636,7 +667,7 @@ def check_model_aggregation_prerequisites(client: Client, proj_folder: Path) -> 
             peer_name=fl_client.name,
             participant_metrics_file=participant_metrics_file,
         )
-
+    
     if peers_with_pending_requests:
         raise StateNotReady(
             "Project requests are pending for the clients: "
@@ -701,5 +732,24 @@ def start_app():
         print(e)
 
 
+def get_agg_state(proj_folder: Path) -> dict:
+    """Load aggregator state (e.g., best accuracy so far, no improvement count) from a file."""
+    agg_state_file = proj_folder / "state" / "agg_state.json"
+    if agg_state_file.is_file():
+        return read_json(agg_state_file)
+    else:
+        return {
+            "best_accuracy": 0.0,
+            "no_improvement_rounds": 0
+        }
+
+def save_agg_state(proj_folder: Path, state: dict) -> None:
+    """Save aggregator state to a file."""
+    agg_state_file = proj_folder / "state" / "agg_state.json"
+    agg_state_file.parent.mkdir(parents=True, exist_ok=True)
+    save_json(state, agg_state_file)
+
+
 if __name__ == "__main__":
     start_app()
+
