@@ -2,7 +2,8 @@ import shutil
 from pathlib import Path
 
 import torch
-from syftbox.lib import Client, SyftPermission
+from syft_core import Client
+from syft_core.permissions import SyftPermission
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
