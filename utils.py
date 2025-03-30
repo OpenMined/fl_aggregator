@@ -3,7 +3,7 @@ import json
 from enum import Enum
 from pathlib import Path
 
-from syftbox.lib import Client
+from syft_core import Client
 
 
 class ParticipantStateCols(Enum):
