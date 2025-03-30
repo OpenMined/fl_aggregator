@@ -2,7 +2,8 @@ import shutil
 from pathlib import Path
 
 import torch
-from syftbox.lib import Client, SyftPermission
+from syft_core import Client
+from syft_core.permissions import SyftPermission
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -63,17 +64,17 @@ def get_participants_metric_file(client: Client, proj_folder: Path):
 
 def init_aggregator(client: Client) -> None:
     """
-    Creates the `fl_aggregator` app in the `api_data` folder
+    Creates the `fl_aggregator` app in the `app_data` folder
     with the following structure:
     ```
-    api_data
+    app_data
     └── fl_aggregator
             └── launch
             └── running
             └── done
     ```
     """
-    fl_aggregator = client.api_data("fl_aggregator")
+    fl_aggregator = client.app_data("fl_aggregator")
 
     for folder in ["launch", "running", "done"]:
         fl_aggregator_folder = fl_aggregator / folder
@@ -124,7 +125,7 @@ def init_project_directory(client: Client, fl_config_json_path: Path) -> None:
     If the project does not exist, it creates a new project with the
     project name and creates the folders for the clients and the aggregator
 
-    api_data
+    app_data
     └── fl_aggregator
             └── launch
             └── running
@@ -145,7 +146,7 @@ def init_project_directory(client: Client, fl_config_json_path: Path) -> None:
     proj_name = str(fl_config["project_name"])
     participants = fl_config["participants"]
 
-    fl_aggregator = client.api_data("fl_aggregator")
+    fl_aggregator = client.app_data("fl_aggregator")
     running_folder = fl_aggregator / "running"
     proj_folder = running_folder / proj_name
 
@@ -200,7 +201,7 @@ def launch_fl_project(client: Client) -> None:
 
     - Manually Copy the `fl_config.json`, `model.py`, `global_model_weights.pt`
         and `mnist_test_dataset.pt` to the `launch` folder
-        api_data
+        app_data
         └── fl_aggregator
                 └── launch
                     ├── fl_config.json (dragged and dropped by the user)
@@ -209,7 +210,7 @@ def launch_fl_project(client: Client) -> None:
                     ├── mnist_test_dataset.pt
     """
 
-    fl_config_json_path = client.api_data("fl_aggregator/launch/fl_config.json")
+    fl_config_json_path = client.app_data("fl_aggregator/launch/fl_config.json")
 
     if not fl_config_json_path.is_file():
         print(
@@ -243,7 +244,7 @@ def create_fl_client_request(client: Client, proj_folder: Path):
             continue
 
         fl_client_app_path = (
-            client.datasites / fl_client.name / "api_data" / "fl_client"
+            client.datasites / fl_client.name / "app_data" / "fl_client"
         )
         fl_client_request_folder = fl_client_app_path / "request" / proj_folder.name
         if not fl_client_request_folder.is_dir():
@@ -293,7 +294,7 @@ def track_model_train_progress_for_peers(client: Client, proj_folder: Path):
     """Track the model training progress for the peer."""
     fl_clients = get_all_directories(proj_folder / "fl_clients")
     for fl_client in fl_clients:
-        fl_client_running_folder = client.api_data("fl_client/running", fl_client.name)
+        fl_client_running_folder = client.app_data("fl_client/running", fl_client.name)
         fl_proj_folder = fl_client_running_folder / proj_folder.name
         proj_state = get_client_proj_state(fl_proj_folder)
         model_train_progress = proj_state.get("model_train_progress")
@@ -357,7 +358,7 @@ def shift_project_to_done_folder(
     b. moves the agg weights and fl_clients to the done folder
     c. delete the project folder from the running folder
     """
-    done_folder = client.api_data("fl_aggregator") / "done"
+    done_folder = client.app_data("fl_aggregator") / "done"
     done_proj_folder = done_folder / proj_folder.name
     done_proj_folder.mkdir(parents=True, exist_ok=True)
 
@@ -427,7 +428,7 @@ def save_model_accuracy_metrics(
 def check_aggregator_added_pvt_data(client: Client, proj_folder: Path):
     """Check if the aggregator has added the test dataset for model evaluation.
 
-    Test dataset location: `api_data/fl_aggregator/private/<test_dataset>.pt`
+    Test dataset location: `app_data/fl_aggregator/private/<test_dataset>.pt`
     """
     fl_config = read_json(proj_folder / "fl_config.json")
     test_dataset_dir = get_app_private_data(client, "fl_aggregator")
@@ -498,7 +499,7 @@ def share_agg_model_to_peers(
 ):
     """Shares the aggregated model to all the participants."""
     for participant in participants:
-        client_app_path = client.datasites / participant / "api_data" / "fl_client"
+        client_app_path = client.datasites / participant / "app_data" / "fl_client"
         client_agg_weights_folder = (
             client_app_path / "running" / proj_folder.name / "agg_weights"
         )
@@ -529,7 +530,7 @@ def aggregate_and_evaluate(client: Client, proj_folder: Path):
 
     if current_round == 1:
         for participant in participants:
-            client_app_path = client.datasites / participant / "api_data" / "fl_client"
+            client_app_path = client.datasites / participant / "app_data" / "fl_client"
             client_agg_weights_folder = (
                 client_app_path / "running" / proj_folder.name / "agg_weights"
             )
@@ -607,7 +608,7 @@ def check_model_aggregation_prerequisites(client: Client, proj_folder: Path) -> 
     peers_with_pending_requests = []
 
     for fl_client in fl_clients:
-        fl_client_app_path = client.datasites / f"{fl_client.name}/api_data/fl_client"
+        fl_client_app_path = client.datasites / f"{fl_client.name}/app_data/fl_client"
 
         # Check if the fl client app is installed for given participant
         check_fl_client_app_installed(
@@ -650,8 +651,8 @@ def check_model_aggregation_prerequisites(client: Client, proj_folder: Path) -> 
 def _advance_fl_project(client: Client, proj_folder: Path) -> None:
     """
     Iterate over all the project folder, it will try to advance its state.
-    1. Has the client installed the fl_client app or not (api_data/fl_client), if not throw an error message
-    2. have we submitted the project request to the clients  (api_data/fl_client/request)
+    1. Has the client installed the fl_client app or not (app_data/fl_client), if not throw an error message
+    2. have we submitted the project request to the clients  (app_data/fl_client/request)
     3. Have all the clients approved the project or not.
     4. let assume the round ix x,  place agg_model_round_x.pt inside all the clients
     5. wait for the trained model from the clients
@@ -672,7 +673,7 @@ def advance_fl_projects(client: Client) -> None:
     """
     Iterates over the `running` folder and tries to advance the FL projects
     """
-    running_folder = client.api_data("fl_aggregator/running")
+    running_folder = client.app_data("fl_aggregator/running")
 
     for proj_folder in running_folder.iterdir():
         if proj_folder.is_dir():
