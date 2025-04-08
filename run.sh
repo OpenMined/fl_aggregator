@@ -8,7 +8,7 @@ uv pip install -U -r requirements.txt
 
 while true; do
     echo "Running 'fl_aggregator' with $(python3 --version) at '$(which python3)'"
-    uv run python3 main.py
+    python3 main.py
 
     echo "Sleeping for 10 seconds..."
     sleep 10
